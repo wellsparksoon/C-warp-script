@@ -138,10 +138,10 @@ checkv4v6(){
 checkStack(){
     lan4=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+')
     lan6=$(ip route get 2606:4700:4700::1111 2>/dev/null | grep -oP 'src \K\S+')
-    if [[ "$lan4" =~ ^[0-9.]+$ ]]; then
+    if [[ "$lan4" =~ ^([0-9]{1,3}\.){3} ]]; then
         ping -c2 -W3 1.1.1.1 >/dev/null 2>&1 && out4=1
     fi
-    if [[ "$LAN6" != "::1" && "$lan6" =~ ^[0-9a-z:]+$ ]]; then
+    if [[ "$lan6" != "::1" && "$lan6" =~ ^([a-f0-9]{1,4}:){2,4}[a-f0-9]{1,4} ]]; then
         ping6 -c2 -w10 2606:4700:4700::1111 >/dev/null 2>&1 && out6=1
     fi
 }
