@@ -1770,8 +1770,15 @@ showIP(){
     c6=$(curl -sm8 ipget.net/country?ip=$v6)
     d4="${RED}未设置${PLAIN}"
     d6="${RED}未设置${PLAIN}"
-    w4=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k $INTERFACE | grep warp | cut -d= -f2) || w4=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
-    w6=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+    
+    if [[ -a "/opt/warp-go/warp-go" ]]; then
+        w4=$(grep -s "Type" /opt/warp-go/warp.conf | cut -d= -f2 | sed "s# ##g")
+        w6=$(grep -s "Type" /opt/warp-go/warp.conf | cut -d= -f2 | sed "s# ##g")
+    else
+        w4=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k $INTERFACE | grep warp | cut -d= -f2) || w4=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+        w6=$(curl -s6m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
+    fi
+
     if [[ -n $INTERFACE ]]; then
         n4=$(nf -address 172.16.0.2 | sed -n 3p | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
         [[ $n4 == "您的网络可能没有正常配置IPv4，或者没有IPv4网络接入" ]] && n4=$(nf | sed -n 3p | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
@@ -1806,7 +1813,7 @@ showIP(){
             check_quota
             t4="${GREEN} $QUOTA ${PLAIN}"
             w4="${GREEN}WARP+${PLAIN}"
-        elif [[ $(grep -s "Type" /opt/warp-go/warp.conf | cut -d= -f2 | sed "s# ##g") == "plus" ]]; then
+        elif [[ $w4 == "plus" ]]; then
             check_quota
             t4="${GREEN} $QUOTA ${PLAIN}"
             w4="${GREEN}WARP+${PLAIN}"
@@ -1821,13 +1828,14 @@ showIP(){
         t4="${RED}无限制${PLAIN}"
         w4="${RED}未启用WARP${PLAIN}"
     fi
+
     if [[ $w6 == "plus" ]]; then
         if [[ -n $(grep -s 'Device name' /etc/wireguard/info.log | awk '{ print $NF }') ]]; then
             d6=$(grep -s 'Device name' /etc/wireguard/info.log | awk '{ print $NF }')
             check_quota
             t6="${GREEN} $QUOTA ${PLAIN}"
             w6="${GREEN}WARP+${PLAIN}"
-        elif [[ $(grep -s "Type" /opt/warp-go/warp.conf | cut -d= -f2 | sed "s# ##g") == "plus" ]]; then
+        elif [[ $w4 == "plus" ]]; then
             check_quota
             t6="${GREEN} $QUOTA ${PLAIN}"
             w6="${GREEN}WARP+${PLAIN}"
@@ -1842,6 +1850,7 @@ showIP(){
         t6="${RED}无限制${PLAIN}"
         w6="${RED}未启用WARP${PLAIN}"
     fi
+
     if [[ $w5s == "plus" ]]; then
         if [[ -n $(grep -s 'Device name' /etc/wireguard/info.log | awk '{ print $NF }') ]]; then
             w5d=$(grep -s 'Device name' /etc/wireguard/info.log | awk '{ print $NF }')
@@ -1859,6 +1868,7 @@ showIP(){
         w5t="${RED}无限制${PLAIN}"
         w5="${RED}未启动${PLAIN}"
     fi
+
     if [[ $s5s == "plus" ]]; then
         CHECK_TYPE=1
         check_quota
@@ -1867,6 +1877,16 @@ showIP(){
     else
         s5t="${RED}无限制${PLAIN}"
         s5="${YELLOW}WARP 免费账户${PLAIN}"
+    fi
+
+    if [[ $w4 == "teams" ]]; then
+        t4="${RED}无限制${PLAIN}"
+        w4="${GREEN}WARP Teams${PLAIN}"
+    fi
+    
+    if [[ $w6 == "teams" ]]; then
+        t6="${RED}无限制${PLAIN}"
+        w6="${GREEN}WARP Teams${PLAIN}"
     fi
     
     [[ -z $s5s ]] || [[ $s5s == "off" ]] && s5="${RED}未启动${PLAIN}"
