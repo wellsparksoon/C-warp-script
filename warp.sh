@@ -1718,7 +1718,7 @@ wgcfprofile(){
     cp -f /etc/wireguard/wgcf.conf /root/wgcf-proxy.conf
     sed -i '/PostUp/d;/PostDown/d;/AllowedIPs/d;/Endpoint/d' /root/wgcf-proxy.conf
     sed -i "8a AllowedIPs = 0.0.0.0\/0\nAllowedIPs = ::\/0\n" /root/wgcf-proxy.conf
-    sed -i "10a Endpoint = $endip:1701" /root/wgcf-proxy.conf
+    sed -i "10a Endpoint = $endip:2408" /root/wgcf-proxy.conf
     green "Wgcf-WARP的WireGuard配置文件已提取成功！"
     yellow "文件已保存至：/root/wgcf-proxy.conf"
     yellow "节点配置二维码如下所示："
@@ -1963,7 +1963,7 @@ menu(){
         15) uninstallcli ;;
         16) installWireProxy ;;
         17) wireproxy_changeport ;;
-        18) switchWireProxy ;;
+        18) switchWireproxy ;;
         19) uninstallWireProxy ;;
         20) wgprofile ;;
         21) warpup ;;
