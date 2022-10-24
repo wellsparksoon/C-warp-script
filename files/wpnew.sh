@@ -61,18 +61,6 @@ wg7='sed -i "7 s/^/PostUp = ip -4 rule add from $(ip route get 1.1.1.1 | grep -o
 wg8='sed -i "7 s/^/PostUp = ip -6 rule add from $(ip route get 2606:4700:4700::1111 | grep -oP '"'src \K\S+') lookup main\n/"'" /etc/wireguard/wgcf.conf && sed -i "7 s/^/PostDown = ip -6 rule delete from $(ip route get 2606:4700:4700::1111 | grep -oP '"'src \K\S+') lookup main\n/"'" /etc/wireguard/wgcf.conf'
 wg9='sed -i "7 s/^/PostUp = ip -4 rule add from $(ip route get 1.1.1.1 | grep -oP '"'src \K\S+') lookup main\n/"'" /etc/wireguard/wgcf.conf && sed -i "7 s/^/PostDown = ip -4 rule delete from $(ip route get 1.1.1.1 | grep -oP '"'src \K\S+') lookup main\n/"'" /etc/wireguard/wgcf.conf && sed -i "7 s/^/PostUp = ip -6 rule add from $(ip route get 2606:4700:4700::1111 | grep -oP '"'src \K\S+') lookup main\n/"'" /etc/wireguard/wgcf.conf && sed -i "7 s/^/PostDown = ip -6 rule delete from $(ip route get 2606:4700:4700::1111 | grep -oP '"'src \K\S+') lookup main\n/"'" /etc/wireguard/wgcf.conf'
 
-# WARP-Go 去除IPv4/IPv6
-wgo1='sed -i "s#.*AllowedIPs.*#AllowedIPs = 0.0.0.0/0#g" /opt/warp-go/warp.conf'
-wgo2='sed -i "s#.*AllowedIPs.*#AllowedIPs = ::/0#g" /opt/warp-go/warp.conf'
-wgo3='sed -i "s#.*AllowedIPs.*#AllowedIPs = 0.0.0.0/0,::/0#g" /opt/warp-go/warp.conf'
-# WARP-Go EndPoint
-wgo4='sed -i "/Endpoint6/d" /opt/warp-go/warp.conf && sed -i "s/162.159.*/162.159.193.10:1701/g" /opt/warp-go/warp.conf'
-wgo5='sed -i "/Endpoint6/d" /opt/warp-go/warp.conf && sed -i "s/162.159.*/[2606:4700:d0::a29f:c003]:1701/g" /opt/warp-go/warp.conf'
-# WARP-Go 允许外部IP地址
-wgo6='sed -i "s#.*PostUp.*#PostUp = ip -4 rule add from $(ip route get 1.1.1.1 | grep -oP "src \K\S+") lookup main#g;s#.*PostDown.*#PostDown = ip -4 rule delete from $(ip route get 1.1.1.1 | grep -oP "src \K\S+") lookup main\n\#PostUp = /opt/warp-go/NonGlobalUp.sh\n\#PostDown = /opt/warp-go/NonGlobalDown.sh#g" /opt/warp-go/warp.conf'
-wgo7='sed -i "s#.*PostUp.*#PostUp = ip -6 rule add from $(ip route get 2606:4700:4700::1111 | grep -oP "src \K\S+") lookup main#g;s#.*PostDown.*#PostDown = ip -6 rule delete from $(ip route get 2606:4700:4700::1111 | grep -oP "src \K\S+") lookup main\n\#PostUp = /opt/warp-go/NonGlobalUp.sh\n\#PostDown = /opt/warp-go/NonGlobalDown.sh#g" /opt/warp-go/warp.conf'
-wgo8='sed -i "s#.*PostUp.*#PostUp = ip -4 rule add from $(ip route get 1.1.1.1 | grep -oP "src \K\S+") lookup main; ip -6 rule add from $(ip route get 2606:4700:4700::1111 | grep -oP "src \K\S+") lookup main#g;s#.*PostDown.*#PostDown = ip -4 rule delete from $(ip route get 1.1.1.1 | grep -oP "src \K\S+") lookup main; ip -6 rule delete from $(ip route get 2606:4700:4700::1111 | grep -oP "src \K\S+") lookup main\n\#PostUp = /opt/warp-go/NonGlobalUp.sh\n\#PostDown = /opt/warp-go/NonGlobalDown.sh#g" /opt/warp-go/warp.conf'
-
 if [[ -z $(type -P curl) ]]; then
     if [[ ! $SYSTEM == "CentOS" ]]; then
         ${PACKAGE_UPDATE[int]}
@@ -101,10 +89,6 @@ check_quota(){
         if [[ -n $(type -P wg-quick) && -n $(type -P wgcf) ]]; then
             ACCESS_TOKEN=$(grep 'access_token' /etc/wireguard/wgcf-account.toml | cut -d \' -f2)
             DEVICE_ID=$(grep 'device_id' /etc/wireguard/wgcf-account.toml | cut -d \' -f2)
-        fi
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            ACCESS_TOKEN=$(grep 'Token' /opt/warp-go/warp.conf | cut -d= -f2 | sed 's# ##g')
-            DEVICE_ID=$(grep 'Device' /opt/warp-go/warp.conf | cut -d= -f2 | sed 's# ##g')
         fi
         API=$(curl -s "https://api.cloudflareclient.com/v0a884/reg/$DEVICE_ID" -H "User-Agent: okhttp/3.12.1" -H "Authorization: Bearer $ACCESS_TOKEN")
         QUOTA=$(grep -oP '"quota":\K\d+' <<< $API)
@@ -520,321 +504,6 @@ uninstallwgcf(){
         sed -i '/^precedence[ ]*::ffff:0:0\/96[ ]*100/d' /etc/gai.conf
     fi
     green "Wgcf-WARP 已彻底卸载成功!"
-}
-
-wpgov44(){
-    checkgbwp
-    if [[ $gbwpv4 =~ on|plus ]] || [[ $gbwpv6 =~ on|plus ]]; then
-        stopwpgo
-        checkStack
-    else
-        checkStack
-    fi
-
-    if [[ -n $(type -P wg-quick) && -n $(type -P wgcf) ]]; then
-        red "检测到您已经安装了Wgcf-WARP全局模式，请先卸载Wgcf-WARP后再安装WARP-Go！"
-        exit 1
-    fi
-
-    if [[ -n $lan4 && -n $out4 && -z $lan6 && -z $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为纯IPv4的VPS，正在切换为WARP-Go全局单栈模式 (WARP IPv4)"
-            stopwpgo
-            wpgo1=$wgo1 && wpgo2=$wgo4 && wpgo3=$wgo6
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为纯IPv4的VPS，正在安装WARP-Go全局单栈模式 (WARP IPv4)"
-            wpgo1=$wgo1 && wpgo2=$wgo4 && wpgo3=$wgo6
-            installwpgo
-        fi
-    elif [[ -z $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为纯IPv6的VPS，正在切换为WARP-Go全局单栈模式 (WARP IPv4 + 原生 IPv6)"
-            stopwpgo
-            wpgo1=$wgo1 && wpgo2=$wgo5 && wpgo3=$wgo7
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为纯IPv6的VPS，正在安装WARP-Go全局单栈模式 (WARP IPv4 + 原生 IPv6)"
-            wpgo1=$wgo1 && wpgo2=$wgo5 && wpgo3=$wgo7
-            installwpgo
-        fi
-    elif [[ -n $lan4 && -n $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为原生双栈的VPS，正在切换为WARP-Go全局单栈模式 (WARP IPv4 + 原生 IPv6)"
-            stopwpgo
-            wpgo1=$wgo1 && wpgo2=$wgo4 && wpgo3=$wgo8
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为原生双栈的VPS，正在安装WARP-Go全局单栈模式 (WARP IPv4 + 原生 IPv6)"
-            wpgo1=$wgo1 && wpgo2=$wgo4 && wpgo3=$wgo8
-            installwpgo
-        fi
-    elif [[ -n $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为NAT IPv4+原生IPv6的VPS，正在安装WARP-Go全局单栈模式 (WARP IPv4 + 原生 IPv6)"
-            stopwpgo
-            wpgo1=$wgo1 && wpgo2=$wgo5 && wpgo3=$wgo8
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为NAT IPv4+原生IPv6的VPS，正在安装WARP-Go全局单栈模式 (WARP IPv4 + 原生 IPv6)"
-            wpgo1=$wgo1 && wpgo2=$wgo5 && wpgo3=$wgo8
-            installwpgo
-        fi
-    fi
-}
-
-wpgov66(){
-    checkgbwp
-    if [[ $gbwpv4 =~ on|plus ]] || [[ $gbwpv6 =~ on|plus ]]; then
-        stopwpgo
-        checkStack
-    else
-        checkStack
-    fi
-
-    if [[ -n $(type -P wg-quick) && -n $(type -P wgcf) ]]; then
-        red "检测到您已经安装了Wgcf-WARP全局模式，请先卸载Wgcf-WARP后再安装WARP-Go！"
-        exit 1
-    fi
-
-    if [[ -n $lan4 && -n $out4 && -z $lan6 && -z $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为纯IPv4的VPS，正在切换为WARP-Go全局单栈模式 (原生IPv4 + WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo2 && wpgo2=$wgo4 && wpgo3=$wgo6
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为纯IPv4的VPS，正在切换为WARP-Go全局单栈模式 (原生IPv4 + WARP IPv6)"
-            wpgo1=$wgo2 && wpgo2=$wgo4 && wpgo3=$wgo6
-            installwpgo
-        fi
-    elif [[ -z $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为纯IPv6的VPS，正在切换为WARP-Go全局单栈模式 (WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo2 && wpgo2=$wgo5 && wpgo3=$wgo7
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为纯IPv6的VPS，正在切换为WARP-Go全局单栈模式 (WARP IPv6)"
-            wpgo1=$wgo2 && wpgo2=$wgo5 && wpgo3=$wgo7
-            installwpgo
-        fi
-    elif [[ -n $lan4 && -n $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为原生双栈的VPS，正在安装WARP-Go全局单栈模式 (原生 IPv4 + WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo2 && wpgo2=$wgo4 && wpgo3=$wgo8
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为原生双栈的VPS，正在安装WARP-Go全局单栈模式 (原生 IPv4 + WARP IPv6)"
-            wpgo1=$wgo2 && wpgo2=$wgo4 && wpgo3=$wgo8
-            installwpgo
-        fi
-    elif [[ -n $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为NAT IPv4+原生 IPv6的VPS，正在安装WARP-Go全局单栈模式 (WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo2 && wpgo2=$wgo5 && wpgo3=$wgo8
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为NAT IPv4+原生 IPv6的VPS，正在安装WARP-Go全局单栈模式 (WARP IPv6)"
-            wpgo1=$wgo2 && wpgo2=$wgo5 && wpgo3=$wgo8
-            installwpgo
-        fi
-    fi
-}
-
-wpgov46(){
-    checkgbwp
-    if [[ $gbwpv4 =~ on|plus ]] || [[ $gbwpv6 =~ on|plus ]]; then
-        stopwpgo
-        checkStack
-    else
-        checkStack
-    fi
-
-    if [[ -n $(type -P wg-quick) && -n $(type -P wgcf) ]]; then
-        red "检测到您已经安装了Wgcf-WARP全局模式，请先卸载Wgcf-WARP后再安装WARP-Go！"
-        exit 1
-    fi
-
-    if [[ -n $lan4 && -n $out4 && -z $lan6 && -z $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为纯IPv4的VPS，正在切换为WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo3 && wpgo2=$wgo4 && wpgo3=$wgo6
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为纯IPv4的VPS，正在切换为WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            wpgo1=$wgo3 && wpgo2=$wgo4 && wpgo3=$wgo6
-            installwpgo
-        fi
-    elif [[ -z $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为纯IPv6的VPS，正在切换为WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo3 && wpgo2=$wgo5 && wpgo3=$wgo7
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为纯IPv6的VPS，正在切换为WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            wpgo1=$wgo3 && wpgo2=$wgo5 && wpgo3=$wgo7
-            installwpgo
-        fi
-    elif [[ -n $lan4 && -n $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为原生双栈的VPS，正在切换为WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo3 && wpgo2=$wgo4 && wpgo3=$wgo8
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为原生双栈的VPS，正在切换为WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            wpgo1=$wgo3 && wpgo2=$wgo4 && wpgo3=$wgo8
-            installwpgo
-        fi
-    elif [[ -n $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        if [[ -a "/opt/warp-go/warp-go" ]]; then
-            yellow "检测为NAT IPv4+原生 IPv6的VPS，正在安装WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            stopwpgo
-            wpgo1=$wgo3 && wpgo2=$wgo5 && wpgo3=$wgo8
-            wpgoconf && wpgocheck && showIP
-        else
-            yellow "检测为NAT IPv4+原生 IPv6的VPS，正在安装WARP-Go全局双栈模式 (WARP IPv4 + WARP IPv6)"
-            wpgo1=$wgo3 && wpgo2=$wgo5 && wpgo3=$wgo8
-            installwpgo
-        fi
-    fi
-}
-
-installwpgo(){
-    checktun
-
-    if [[ $SYSTEM == "CentOS" ]]; then
-        ${PACKAGE_INSTALL[int]} sudo curl wget bc htop iputils screen python3 qrencode
-    else
-        ${PACKAGE_UPDATE[int]}
-        ${PACKAGE_INSTALL[int]} sudo curl wget bc htop inetutils-ping screen python3 qrencode
-    fi
-
-    arch=$(archAffix)
-    if [[ $arch == "amd64" ]]; then
-        flags=$(cat /proc/cpuinfo | grep flags | head -n 1 | cut -d: -f2)
-        case "$CPU_FLAGS" in
-            *avx512*) arch=amd64v4;;
-            *avx2*) arch=amd64v3;;
-            *sse3*) arch=amd64v2;;
-            *) arch=amd64;;
-        esac
-    fi
-
-    mkdir -p /opt/warp-go/
-    wget -O /opt/warp-go/warp-go https://gitlab.com/misakablog/warp-script/-/raw/main/files/warp-go/warp-go-$arch
-    chmod +x /opt/warp-go/warp-go
-
-    wpgoreg
-
-    cat <<EOF > /opt/warp-go/NonGlobalUp.sh
-sleep 5
-ip -4 rule add from 172.16.0.2 lookup 60000
-ip -4 rule add table main suppress_prefixlength 0
-ip -4 route add default dev WARP table 60000
-EOF
-    cat <<EOF > /opt/warp-go/NonGlobalDown.sh
-ip -4 rule delete from 172.16.0.2 lookup 60000
-ip -4 rule delete table main suppress_prefixlength 0
-EOF
-    chmod +x /opt/warp-go/NonGlobalUp.sh /opt/warp-go/NonGlobalDown.sh
-
-    cat <<EOF > /lib/systemd/system/warp-go.service
-[Unit]
-Description=warp-go service
-After=network.target
-Documentation=https://gitlab.com/misakablog/warp-script
-Documentation=https://gitlab.com/ProjectWARP/warp-go
-[Service]
-WorkingDirectory=/opt/warp-go/
-ExecStart=/opt/warp-go/warp-go --config=/opt/warp-go/warp.conf
-Environment="LOG_LEVEL=verbose"
-RemainAfterExit=yes
-Restart=always
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    wpgoconf
-    wpgocheck
-    showIP
-}
-
-wpgoreg(){
-    until [[ -e /opt/warp-go/warp.conf ]]; do
-        yellow "正在向CloudFlare WARP注册账号, 如出现Success即为注册成功"
-        /opt/warp-go/warp-go --register --config=/opt/warp-go/warp.conf
-    done
-}
-
-wpgoconf(){
-    echo $wpgo1 | sh
-    echo $wpgo2 | sh
-    echo $wpgo3 | sh
-}
-
-wpgocheck(){
-    yellow "正在启动 WARP-Go"
-    i=0
-    while [ $i -le 4 ]; do let i++
-        systemctl stop warp-go
-        systemctl disable warp-go >/dev/null 2>&1
-        systemctl start warp-go
-        systemctl enable warp-go >/dev/null 2>&1
-        checkgbwp
-        sleep 3
-        if [[ $gbwpv4 =~ on|plus ]] || [[ $gbwpv6 =~ on|plus ]]; then
-            green "WARP-Go 已启动成功！"
-            break
-        else
-            red "WARP-Go 启动失败！"
-        fi
-        checkgbwp
-        if [[ ! $gbwpv4 =~ on|plus && ! $gbwpv6 =~ on|plus ]]; then
-            red "安装WARP-Go失败！"
-            green "建议如下："
-            yellow "1. 强烈建议使用官方源升级系统及内核加速！如已使用第三方源及内核加速，请务必更新到最新版，或重置为官方源"
-            yellow "2. 部分VPS系统极度精简，相关依赖需自行安装后再尝试"
-            exit 1
-        fi
-    done
-}
-
-startwpgo(){
-    systemctl start warp-go
-    systemctl disable warp-go >/dev/null 2>&1
-}
-
-stopwpgo(){
-    systemctl stop warp-go
-    systemctl enable warp-go >/dev/null 2>&1
-}
-
-switchwpgo(){
-    checkgbwp
-    if [[ $gbwpv4 =~ on|plus ]] || [[ $gbwpv6 =~ on|plus ]]; then
-        startwpgo
-        green "WARP-Go 已启动成功！"
-        exit 1
-    fi
-    if [[ ! $gbwpv4 =~ on|plus ]] || [[ ! $gbwpv6 =~ on|plus ]]; then
-        stopwpgo
-        green "WARP-Go 已停止成功！"
-        exit 1
-    fi
-}
-
-uninstallwpgo(){
-    systemctl disable --now warp-go >/dev/null 2>&1
-    kill -15 $(pgrep warp-go) >/dev/null 2>&1
-    /opt/warp-go/warp-go --config=/opt/warp-go/warp.conf --remove >/dev/null 2>&1
-    rm -rf /opt/warp-go /usr/bin/warp-go /lib/systemd/system/warp-go.service
-    green "WARP-Go 已彻底卸载成功!"
 }
 
 installcli(){
@@ -1526,181 +1195,14 @@ warpsw2(){
     fi
 }
 
-warpsw3(){
-    checkgbwp
-    if [[ $gbwpv4 =~ on|plus ]] || [[ $gbwpv6 =~ on|plus ]]; then
-        systemctl stop warp-go
-        checkStack
-        systemctl start warp-go
-    else
-        checkStack
-    fi
-
-    currallowips=$(cat /opt/warp-go/warp.conf | grep AllowedIPs)
-
-    if [[ -n $lan4 && -n $out4 && -z $lan6 && -z $out6 ]]; then
-        currendpoint=$wgo4
-        currpost=$wgo6
-    elif [[ -z $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        currendpoint=$wgo5
-        currpost=$wgo7
-    elif [[ -n $lan4 && -n $out4 && -n $lan6 && -n $out6 ]]; then
-        currendpoint=$wgo4
-        currpost=$wgo8
-    elif [[ -n $lan4 && -z $out4 && -n $lan6 && -n $out6 ]]; then
-        currendpoint=$wgo5
-        currpost=$wgo8
-    fi
-
-    yellow "请选择切换的账户类型"
-    green "1. WARP 免费账户"
-    green "2. WARP+"
-    green "3. WARP Teams (Zero Trust)"
-    read -rp "请选择账户类型 [1-3]: " accountInput
-    if [[ $accountInput == 1 ]]; then
-        until [[ -e /opt/warp-go/warp.conf ]]; do
-            yellow "正在向CloudFlare WARP注册账号, 如出现Success即为注册成功"
-            /opt/warp-go/warp-go --register --config=/opt/warp-go/warp.conf
-        done
-        sed -i "s#.*AllowedIPs.*#$currallowips#g" /opt/warp-go/warp.conf
-        echo $currendpoint | sh
-        echo $currpost | sh
-        systemctl start warp-go && sleep 3
-        checkgbwp
-        if [[ $gbwpv4 == "on" ]] || [[ $gbwpv6 == "on" ]]; then
-            green "WARP 免费账户切换成功！"
-        else
-            red "WARP 免费账户切换失败！"
-        fi
-    fi
-    if [[ $accountInput == 2 ]]; then
-        yellow "获取CloudFlare WARP账号密钥信息方法: "
-        green "电脑: 下载并安装CloudFlare WARP→设置→偏好设置→账户→复制密钥到脚本中"
-        green "手机: 下载并安装1.1.1.1 APP→菜单→账户→复制密钥到脚本中"
-        echo ""
-        yellow "重要：请确保手机或电脑的1.1.1.1 APP的账户状态为WARP+！"
-        read -rp "输入WARP账户许可证密钥 (26个字符): " warpkey
-        until [[ -z $warpkey || $warpkey =~ ^[A-Z0-9a-z]{8}-[A-Z0-9a-z]{8}-[A-Z0-9a-z]{8}$ ]]; do
-            red "WARP账户许可证密钥格式输入错误，请重新输入！"
-            read -rp "输入WARP账户许可证密钥 (26个字符): " warpkey
-        done
-        read -rp "请输入自定义设备名，如未输入则使用默认随机设备名: " devicename
-        systemctl stop warp-go
-        yellow "正在向CloudFlare WARP注册账号, 如出现Success即为注册成功"
-        result=$(/opt/warp-go/warp-go --register --config=/opt/warp-go/warp.conf --license=$warpkey --device-name=$devicename)
-        if [[ $result == "Success" ]]; then
-            sed -i "s#.*AllowedIPs.*#$currallowips#g" /opt/warp-go/warp.conf
-            echo $currendpoint | sh
-            echo $currpost | sh
-            systemctl start warp-go && sleep 3
-            checkgbwp
-            if [[ $gbwpv4 == "plus" ]] || [[ $gbwpv6 == "plus" ]]; then
-                green "WARP+ 账户升级成功！"
-            else
-                red "WARP+ 账户升级失败！"
-            fi
-        else
-            red "WARP+ 账户注册失败！正在还原为WARP 免费账户"
-            until [[ -e /opt/warp-go/warp.conf ]]; do
-                yellow "正在向CloudFlare WARP注册账号, 如出现Success即为注册成功"
-                /opt/warp-go/warp-go --register --config=/opt/warp-go/warp.conf
-            done
-            sed -i "s#.*AllowedIPs.*#$currallowips#g" /opt/warp-go/warp.conf
-            echo $currendpoint | sh
-            echo $currpost | sh
-            systemctl start warp-go && sleep 3
-            red "WARP+账户升级失败！"
-            green "建议如下："
-            yellow "1. 检查1.1.1.1 APP中的WARP+账户是否有足够的流量，如没有流量可以使用本脚本内的刷流量功能来获取免费的WARP+流量"
-            yellow "2. 检查当前WARP许可证密钥是否绑定超过5台设备"
-            yellow "3. 脚本可能跟不上时代, 建议截图发布到GitLab Issues或TG群询问"
-        fi
-    fi
-    if [[ $accountInput == 3 ]]; then
-        read -rp "请输入Teams账户TOKEN: " teamstoken
-        systemctl stop warp-go
-        if [[ -n $teamstoken ]]; then
-            yellow "正在向CloudFlare WARP注册账号, 如出现Success即为注册成功"
-            rm -f /opt/warp-go/warp.conf
-            result=$(/opt/warp-go/warp-go --register --config=/opt/warp-go/warp.conf --team-config "$teamstoken")
-            sed -i "s#.*AllowedIPs.*#$currallowips#g" /opt/warp-go/warp.conf
-            echo $currendpoint | sh
-            echo $currpost | sh
-            systemctl start warp-go && sleep 3
-            checkgbwp
-            if [[ $gbwpv4 == "plus" ]] || [[ $gbwpv6 == "plus" ]]; then
-                green "WARP Teams账户升级成功！"
-            else
-                red "WARP Teams账户注册失败！正在还原为WARP 免费账户"
-                until [[ -e /opt/warp-go/warp.conf ]]; do
-                    yellow "正在向CloudFlare WARP注册账号, 如出现Success即为注册成功"
-                    /opt/warp-go/warp-go --register --config=/opt/warp-go/warp.conf
-                done
-                sed -i "s#.*AllowedIPs.*#$currallowips#g" /opt/warp-go/warp.conf
-                echo $currendpoint | sh
-                echo $currpost | sh
-                systemctl start warp-go && sleep 3
-                red "WARP Teams账户升级失败！"
-                green "建议如下："
-                yellow "1. 检查提取出来的TOKEN是否过期或不可用"
-                yellow "2. 你有可能修改了团队名、删除了设备"
-                yellow "3. 脚本可能跟不上时代, 建议截图发布到GitLab Issues或TG群询问"
-            fi
-        else
-            red "未输入Teams账户配置文件链接，正在使用脚本公用Teams账户..."
-            rm -f /opt/warp-go/warp.conf
-            cat <<EOF > /opt/warp-go/warp.conf
-[Account]
-Device = FSCARMEN-WARP-SHARE-TEAM
-PrivateKey = SHVqHEGI7k2+OQ/oWMmWY2EQObbRQjRBdDPimh0h1WY=
-Token = SB-KKKYG-YGKKK-SB
-Type = team
-[Peer]
-PublicKey = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=
-Endpoint = 162.159.193.10:1701
-KeepAlive = 30
-#AllowedIPs = 0.0.0.0/0, ::/0
-[Script]
-#PostUp = 
-#PostDown =
-EOF
-            sed -i "s#.*AllowedIPs.*#$currallowips#g" /opt/warp-go/warp.conf
-            echo $currendpoint | sh
-            echo $currpost | sh
-            systemctl start warp-go && sleep 3
-            checkgbwp
-            if [[ $gbwpv4 == "plus" ]] || [[ $gbwpv6 == "plus" ]]; then
-                green "WARP Teams账户升级成功！"
-            else
-                red "WARP Teams账户注册失败！正在还原为WARP 免费账户"
-                until [[ -e /opt/warp-go/warp.conf ]]; do
-                    yellow "正在向CloudFlare WARP注册账号, 如出现Success即为注册成功"
-                    /opt/warp-go/warp-go --register --config=/opt/warp-go/warp.conf
-                done
-                sed -i "s#.*AllowedIPs.*#$currallowips#g" /opt/warp-go/warp.conf
-                echo $currendpoint | sh
-                echo $currpost | sh
-                systemctl start warp-go && sleep 3
-                red "WARP Teams账户升级失败！"
-                green "建议如下："
-                yellow "1. 检查提取出来的TOKEN是否过期或不可用"
-                yellow "2. 你有可能修改了团队名、删除了设备"
-                yellow "3. 脚本可能跟不上时代, 建议截图发布到GitLab Issues或TG群询问"
-            fi
-        fi
-    fi
-}
-
 warpsw(){
     yellow "请选择需要切换WARP账户的WARP客户端:"
     echo -e " ${GREEN}1.${PLAIN} Wgcf-WARP 和 WireProxy-WARP 代理模式"
     echo -e " ${GREEN}2.${PLAIN} WARP-Cli ${RED}(目前仅支持升级WARP+账户)${PLAIN}"
-    echo -e " ${GREEN}3.${PLAIN} WARP-Go"
-    read -rp "请选择客户端 [1-3]: " clientInput
+    read -rp "请选择客户端 [1-2]: " clientInput
     case "$clientInput" in
         1 ) warpsw1 ;;
         2 ) warpsw2 ;;
-        3 ) warpsw3 ;;
         * ) exit 1 ;;
     esac
 }
@@ -1806,10 +1308,6 @@ showIP(){
             check_quota
             t4="${GREEN} $QUOTA ${PLAIN}"
             w4="${GREEN}WARP+${PLAIN}"
-        elif [[ $(grep -s "Type" /opt/warp-go/warp.conf | cut -d= -f2 | sed "s# ##g") == "plus" ]]; then
-            check_quota
-            t4="${GREEN} $QUOTA ${PLAIN}"
-            w4="${GREEN}WARP+${PLAIN}"
         else
             t4="${RED}无限制${PLAIN}"
             w4="${GREEN}WARP Teams${PLAIN}"
@@ -1824,10 +1322,6 @@ showIP(){
     if [[ $w6 == "plus" ]]; then
         if [[ -n $(grep -s 'Device name' /etc/wireguard/info.log | awk '{ print $NF }') ]]; then
             d6=$(grep -s 'Device name' /etc/wireguard/info.log | awk '{ print $NF }')
-            check_quota
-            t6="${GREEN} $QUOTA ${PLAIN}"
-            w6="${GREEN}WARP+${PLAIN}"
-        elif [[ $(grep -s "Type" /opt/warp-go/warp.conf | cut -d= -f2 | sed "s# ##g") == "plus" ]]; then
             check_quota
             t6="${GREEN} $QUOTA ${PLAIN}"
             w6="${GREEN}WARP+${PLAIN}"
@@ -1940,7 +1434,7 @@ menu(){
     echo -e ""
     showIP
     echo -e ""
-    read -rp "请输入选项 [0-23]：" menuChoice
+    read -rp "请输入选项 [0-18]：" menuChoice
     case $menuChoice in
         0) exit 1 ;;
         1) wgcfv44 ;;
@@ -1948,20 +1442,20 @@ menu(){
         3) wgcfv46 ;;
         4) switchwgcf ;;
         5) uninstallwgcf ;;
-        11) warpcli=1 && installcli ;;
-        12) warpcli=2 && installcli ;;
-        13) warpcli_changeport ;;
-        14) switchcli ;;
-        15) uninstallcli ;;
-        16) installWireProxy ;;
-        17) wireproxy_changeport ;;
-        18) switchWireproxy ;;
-        19) uninstallWireProxy ;;
-        20) wgprofile ;;
-        21) warpup ;;
-        22) warpsw ;;
-        23) wget -N --no-check-certificate https://gitlab.com/misakablog/warp-script/-/raw/main/netflix.sh && bash netflix.sh ;;
-        *) red "请输入正确的选项 [0-23]！" && exit 1 ;;
+        6) warpcli=1 && installcli ;;
+        7) warpcli=2 && installcli ;;
+        8) warpcli_changeport ;;
+        9) switchcli ;;
+        10) uninstallcli ;;
+        11) installWireProxy ;;
+        12) wireproxy_changeport ;;
+        13) switchWireproxy ;;
+        14) uninstallWireProxy ;;
+        15) wgprofile ;;
+        16) warpup ;;
+        17) warpsw ;;
+        18) wget -N --no-check-certificate https://gitlab.com/misakablog/warp-script/-/raw/main/netflix.sh && bash netflix.sh ;;
+        *) red "请输入正确的选项 [0-18]！" && exit 1 ;;
     esac
 }
 
