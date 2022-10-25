@@ -1227,40 +1227,6 @@ wgcfprofile(){
     qrencode -t ansiutf8 < /root/wgcf-proxy.conf
 }
 
-wpgoprofile(){
-    yellow "请选择将要生成的配置文件的网络环境："
-    green "1. IPv4 （默认）"
-    green "2. IPv6"
-    read -rp "请输入选项 [1-2]：" netInput
-    case $netInput in
-        1) endip="162.159.193.10" ;;
-        2) endip="[2606:4700:d0::]" ;;
-        *) endip="162.159.193.10" ;;
-    esac
-    result=$(/opt/warp-go/warp-go --config=/opt/warp-go/warp.conf --export-wireguard=/root/warpgo-proxy.conf)
-    sleep 2
-    if [[ ! $result == "Success" ]]; then
-        red "WARP-Go的WireGuard配置文件生成失败！"
-        exit 1
-    fi
-    sed -i "s/engage.cloudflareclient.com/$endip/g" /root/warpgo-proxy.conf
-    green "WARP-Go的WireGuard配置文件已提取成功！"
-    yellow "文件已保存至：/root/warpgo-proxy.conf"
-    yellow "节点配置二维码如下所示："
-    qrencode -t ansiutf8 < /root/warpgo-proxy.conf
-}
-
-wgprofile(){
-    yellow "请选择将要生成的配置文件的WARP客户端："
-    green "1. Wgcf-WARP （默认）"
-    green "2. WARP-Go"
-    read -rp "请输入选项 [1-2]：" clientInput
-    case $clientInput in
-        2) wpgoprofile ;;
-        *) wgcfprofile ;;
-    esac
-}
-
 showIP(){
     if [[ $(warp-cli --accept-tos settings 2>/dev/null | grep "Mode" | awk -F ": " '{print $2}') == "Warp" ]]; then
         INTERFACE='--interface CloudflareWARP'
@@ -1451,7 +1417,7 @@ menu(){
         12) wireproxy_changeport ;;
         13) switchWireproxy ;;
         14) uninstallWireProxy ;;
-        15) wgprofile ;;
+        15) wgcfprofile ;;
         16) warpup ;;
         17) warpsw ;;
         18) wget -N --no-check-certificate https://gitlab.com/misakablog/warp-script/-/raw/main/netflix.sh && bash netflix.sh ;;
