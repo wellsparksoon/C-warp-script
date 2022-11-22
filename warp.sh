@@ -1420,7 +1420,7 @@ menu(){
         15) wgcfprofile ;;
         16) warpup ;;
         17) warpsw ;;
-        18) wget -N --no-check-certificate https://github.com/wellsparksoon/C-warp-script/-/raw/main/netflix.sh && bash netflix.sh ;;
+        18) wget -N --no-check-certificate https://raw.githubusercontent.com/wellsparksoon/C-warp-script/main/netflix.sh && bash netflix.sh ;;
         *) red "请输入正确的选项 [0-18]！" && exit 1 ;;
     esac
 }
