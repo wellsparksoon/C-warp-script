@@ -78,7 +78,7 @@ archAffix(){
 }
 
 if [[ ! -f /usr/local/bin/nf ]]; then
-    wget https://gitlab.com/misakablog/warp-script/-/raw/main/files/nfverify/nf_linux_$(archAffix) -O /usr/local/bin/nf
+    wget https://github.com/wellsparksoon/C-warp-script/-/raw/main/files/nfverify/nf_linux_$(archAffix) -O /usr/local/bin/nf
     chmod +x /usr/local/bin/nf
 fi
 
@@ -106,7 +106,7 @@ checktun(){
                 return 0
             fi
         elif [[ $VIRT == "openvz" ]]; then
-            wget -N --no-check-certificate https://gitlab.com/misakablog/warp-script/-/raw/main/files/tun.sh && bash tun.sh
+            wget -N --no-check-certificate https://github.com/wellsparksoon/C-warp-script/-/raw/main/files/tun.sh && bash tun.sh
         else
             red "检测到目前VPS未开启TUN模块, 请到后台控制面板处开启"
             exit 1
@@ -131,7 +131,7 @@ checkStack(){
 }
 
 initwgcf(){
-    wget -N --no-check-certificate https://gitlab.com/misakablog/warp-script/-/raw/main/files/wgcf/wgcf-latest-linux-$(archAffix) -O /usr/local/bin/wgcf
+    wget -N --no-check-certificate https://github.com/wellsparksoon/C-warp-script/-/raw/main/files/wgcf/wgcf-latest-linux-$(archAffix) -O /usr/local/bin/wgcf
     chmod +x /usr/local/bin/wgcf
 }
 
@@ -346,7 +346,7 @@ installwgcf(){
         ${PACKAGE_INSTALL[int]} epel-release
         ${PACKAGE_INSTALL[int]} sudo curl wget iproute net-tools wireguard-tools iptables bc htop screen python3 iputils qrencode
         if [[ $OSID == 9 ]] && [[ -z $(type -P resolvconf) ]]; then
-            wget -N https://gitlab.com/misakablog/warp-script/-/raw/main/files/resolvconf -O /usr/sbin/resolvconf
+            wget -N https://github.com/wellsparksoon/C-warp-script/-/raw/main/files/resolvconf -O /usr/sbin/resolvconf
             chmod +x /usr/sbin/resolvconf
         fi
     fi
@@ -367,7 +367,7 @@ installwgcf(){
     fi
     
     if [[ $main -lt 5 ]] || [[ $minor -lt 6 ]] || [[ $VIRT =~ lxc|openvz ]]; then
-        wget -N --no-check-certificate https://gitlab.com/misakablog/warp-script/-/raw/main/files/wireguard-go/wireguard-go-$(archAffix) -O /usr/bin/wireguard-go
+        wget -N --no-check-certificate https://github.com/wellsparksoon/C-warp-script/-/raw/main/files/wireguard-go/wireguard-go-$(archAffix) -O /usr/bin/wireguard-go
         chmod +x /usr/bin/wireguard-go
     fi
 
@@ -697,7 +697,7 @@ installWireProxy(){
         ${PACKAGE_INSTALL[int]} sudo curl wget bc htop inetutils-ping screen python3 qrencode
     fi
     
-    wget -N https://gitlab.com/misakablog/warp-script/-/raw/main/files/wireproxy/wireproxy-$(archAffix) -O /usr/local/bin/wireproxy
+    wget -N https://github.com/wellsparksoon/C-warp-script/-/raw/main/files/wireproxy/wireproxy-$(archAffix) -O /usr/local/bin/wireproxy
     chmod +x /usr/local/bin/wireproxy
     
     initwgcf
@@ -1064,7 +1064,7 @@ warpsw1(){
         read -rp "请复制粘贴WARP Teams账户配置文件链接 [如未输入则使用脚本默认的]：" teamconfigurl
         if [[ -z $teamconfigurl ]]; then
             yellow "未输入Teams账户配置文件链接，正在使用脚本公用Teams账户..."
-            teamconfigurl="https://gitlab.com/misakablog/warp-script/-/raw/main/files/publicteam.xml"
+            teamconfigurl="https://github.com/wellsparksoon/C-warp-script/-/raw/main/files/publicteam.xml"
         fi
         teamsconfig=$(curl -sSL "$teamconfigurl" | sed "s/\"/\&quot;/g")
         wpteampublickey=$(expr "$teamsconfig" : '.*public_key&quot;:&quot;\([^&]*\).*')
@@ -1420,7 +1420,7 @@ menu(){
         15) wgcfprofile ;;
         16) warpup ;;
         17) warpsw ;;
-        18) wget -N --no-check-certificate https://gitlab.com/misakablog/warp-script/-/raw/main/netflix.sh && bash netflix.sh ;;
+        18) wget -N --no-check-certificate https://github.com/wellsparksoon/C-warp-script/-/raw/main/netflix.sh && bash netflix.sh ;;
         *) red "请输入正确的选项 [0-18]！" && exit 1 ;;
     esac
 }
